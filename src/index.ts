@@ -8,11 +8,11 @@ export default {
     // 1. Start Command
     bot.command("start", async (ctx) => {
       const keyboard = new InlineKeyboard()
-        .url("📢 Channel သို့သွားရန်", "https://t.me/KP_CHANNEL_KP")
+        .url("📢 Channel Join ရန်နှိပ်ပါ ", "https://t.me/KP_CHANNEL_KP")
         .row()
         .text("🔑 Key ထုတ်ရန်", "generate_key");
 
-      await ctx.reply("👋 မင်္ဂလာပါ။ Channel Join ပြီးမှ Key ရယူနိုင်ပါတယ်။", { reply_markup: keyboard });
+      await ctx.reply("👋 မင်္ဂလာပါ။ Channel Join ပြီးမှ Key ထုပ်လို့ ရမှာဖြစ်ပါတယ်။Key ထုပ်ပီးသွားရင် Website မှာ တခါသာ အသုံးပြုနိုင်ပါလိမ့်မယ်", { reply_markup: keyboard });
     });
 
     // 2. Key ထုတ်ပေးခြင်း (DB ထဲသိမ်းမယ်)
@@ -22,7 +22,7 @@ bot.callbackQuery("generate_key", async (ctx) => {
   try {
     const member = await ctx.api.getChatMember(CHANNEL_ID, ctx.from!.id);
     if (member.status === "left" || member.status === "kicked") {
-      return await ctx.answerCallbackQuery({ text: "❌ Channel အရင် Join ပေးပါ", show_alert: true });
+      return await ctx.answerCallbackQuery({ text: "❌ Channel Join မပြင်းပါနဲ့လို့ 😭😭😭", show_alert: true });
     }
 
     const newKey = Math.random().toString(36).substring(7).toUpperCase();
