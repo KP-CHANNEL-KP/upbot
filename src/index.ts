@@ -22,7 +22,7 @@ bot.callbackQuery("generate_key", async (ctx) => {
   try {
     const member = await ctx.api.getChatMember(CHANNEL_ID, ctx.from!.id);
     if (member.status === "left" || member.status === "kicked") {
-      return await ctx.answerCallbackQuery({ text: "❌ Channel Join မပြင်းပါနဲ့လို့ 😭😭😭", show_alert: true });
+      return await ctx.answerCallbackQuery({ text: "❌ Channel Join ဖို့ မပြင်းပါနဲ့လို့။Channel ကို Join မှ Key ထုပ်လို့ ရမှာပါဆို 😭😭😭", show_alert: true });
     }
 
     const newKey = Math.random().toString(36).substring(7).toUpperCase();
