@@ -6,13 +6,16 @@ export default {
     const db = env.DB; // D1 Database binding နာမည်
 
     // 1. Start Command
+    // 1. Start Command
     bot.command("start", async (ctx) => {
       const keyboard = new InlineKeyboard()
-        .url("📢 Channel Join ရန်နှိပ်ပါ ", "https://t.me/KP_CHANNEL_KP")
-        .row()
+        .url("📢 Channel Join ရန်နှိပ်ပါ", "https://t.me/KP_CHANNEL_KP")
+        .row() // အသစ်တစ်ကြောင်းဆင်းမယ်
+        .url("👤 Admin ကို ဆက်သွယ်ရန်", "https://t.me/YOUR_TELEGRAM_USERNAME") // ဒီနေရာမှာ အစ်ကို့ Username ထည့်ပါ
+        .row() // နောက်ထပ် အသစ်တစ်ကြောင်းဆင်းမယ်
         .text("🔑 Key ထုတ်ရန်", "generate_key");
 
-      await ctx.reply("👋 မင်္ဂလာပါ။ Channel Join ပြီးမှ Key ထုပ်လို့ ရမှာဖြစ်ပါတယ်။Key ထုပ်ပီးသွားရင် Website မှာ တခါသာ အသုံးပြုနိုင်ပါလိမ့်မယ်", { reply_markup: keyboard });
+      await ctx.reply("👋 မင်္ဂလာပါ။ Channel Join ပြီးမှ Key ထုပ်လို့ ရမှာဖြစ်ပါတယ်။ Key ထုပ်ပီးသွားရင် Website မှာ တခါသာ အသုံးပြုနိုင်ပါလိမ့်မယ်", { reply_markup: keyboard });
     });
 
     // 2. Key ထုတ်ပေးခြင်း (DB ထဲသိမ်းမယ်)
