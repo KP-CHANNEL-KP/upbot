@@ -44,7 +44,11 @@ bot.callbackQuery("generate_key", async (ctx) => {
     // 3. Website မှ Key လာစစ်ခြင်း (API Endpoint)
     const url = new URL(request.url);
     if (request.method === "POST" && url.pathname === "/verify-key") {
-      const { key } = await request.json();
+      const body = (await request.json()) as { key?: string };
+      const key = body.key;
+      if (!key || typeof key !== "string") {
+        return new Response(JSON.stringify({ valid: false, message: "Key မမှန်ပါ သို့မဟုတ် သုံးပြီးသားဖြစ်သည်" }), { status: 400 });
+      }
       const row = await db.prepare("SELECT status FROM keys WHERE key = ?").bind(key).first();
       
       if (row && row.status === 'active') {
@@ -56,7 +60,7 @@ bot.callbackQuery("generate_key", async (ctx) => {
     }
 
     // Webhook Handler
-    if (request.method === "POST") return webhookCallback(bot, "cloudflare-mod")(request, env, ctx);
+    if (request.method === "POST") return webhookCallback(bot, "cloudflare-mod")(request);
     return new Response("Bot is active!", { status: 200 });
   },
 };
