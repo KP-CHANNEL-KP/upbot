@@ -1,0 +1,8 @@
+name = "my-bot"
+main = "src/index.ts"
+compatibility_date = "2024-05-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "my-db"
+database_id = "11285fbc-45a0-4be7-9e12-f642c610b2b2"
