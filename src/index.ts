@@ -11,7 +11,7 @@ export default {
       const keyboard = new InlineKeyboard()
         .url("📢 Channel Join ရန်နှိပ်ပါ", "https://t.me/KP_CHANNEL_KP")
         .row() // အသစ်တစ်ကြောင်းဆင်းမယ်
-        .url("👤 Admin ကို ဆက်သွယ်ရန်", "https://t.me/YOUR_TELEGRAM_USERNAME") // ဒီနေရာမှာ အစ်ကို့ Username ထည့်ပါ
+        .url("👤 Admin ကို ဆက်သွယ်ရန်", "https://t.me/kpbykp") // ဒီနေရာမှာ အစ်ကို့ Username ထည့်ပါ
         .row() // နောက်ထပ် အသစ်တစ်ကြောင်းဆင်းမယ်
         .text("🔑 Key ထုတ်ရန်", "generate_key");
 
