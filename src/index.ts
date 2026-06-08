@@ -5,17 +5,27 @@ export default {
     const bot = new Bot(env.BOT_TOKEN);
     const db = env.DB;
 
-    const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
+    // CORS Headers ကို အမြဲတမ်းသုံးနိုင်ရန်အတွက် function တစ်ခုဆောက်ပေးထားသည်
+    const getCorsHeaders = (origin: string | null) => ({
+      "Access-Control-Allow-Origin": origin || "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
-    };
+      "Content-Type": "application/json"
+    });
 
+    // OPTIONS request ဆိုရင် ခွင့်ပြုချက်ချက်ချင်းပေးပါ
     if (request.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders });
+      return new Response(null, { 
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        } 
+      });
     }
 
     const url = new URL(request.url);
+    const origin = request.headers.get("Origin");
 
     // --- 1. Bot Endpoints ---
     bot.command("start", async (ctx) => {
@@ -45,33 +55,25 @@ export default {
 
     // --- 2. API Endpoints ---
 
-    // [FIXED] Backend ကနေ Ping စစ်တာကို လုံးဝဖြုတ်လိုက်ပါပြီ။ Timeout လုံးဝမဖြစ်တော့ပါ။
-    // Backend (Worker) အပိုင်း
-// --- 2. API Endpoints ---
+    // [FIXED] Backend ကနေ Ping စစ်တာကို လုံးဝဖြုတ်လိုက်ပါပြီ။ Frontend ကပဲ စစ်ပါတော့မည်။
+    if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
+      try {
+        const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
+        const response = await fetch(remoteUrl);
+        const textData = await response.text();
+        const decoded = atob(textData);
+        const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-// ဒီ block တစ်ခုလုံးကို မင်းရဲ့ index.ts ထဲက အဟောင်းနေရာမှာ အစားထိုးပါ
-if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
-  try {
-    const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
-    const response = await fetch(remoteUrl);
-    const textData = await response.text();
-    const decoded = atob(textData);
-    const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
+        const result = lines.map(line => ({ key: line, ping: -1 }));
 
-    // Ping စစ်တာကို Backend မှာ လုံးဝဖြုတ်လိုက်ပြီး -1 နဲ့ပဲ ပို့ပေးမယ်
-    const result = lines.map(line => ({ key: line, ping: -1 }));
-
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders } // corsHeaders က အပေါ်မှာ ကြေညာထားပြီးသား ဖြစ်ရမယ်
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: "Failed" }), { 
-      status: 500, 
-      headers: { "Content-Type": "application/json", ...corsHeaders } 
-    });
-  }
-}
+        return new Response(JSON.stringify(result), {
+          status: 200,
+          headers: getCorsHeaders(origin)
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "Failed" }), { status: 500, headers: getCorsHeaders(origin) });
+      }
+    }
 
     // Key Verify
     if (request.method === "POST" && url.pathname === "/verify-key") {
@@ -79,31 +81,17 @@ if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
       const row = await db.prepare("SELECT status FROM keys WHERE key = ?").bind(body.key).first();
       if (row && (row as any).status === 'active') {
         await db.prepare("UPDATE keys SET status = 'expired' WHERE key = ?").bind(body.key).run();
-        return new Response(JSON.stringify({ valid: true }), { status: 200, headers: corsHeaders });
+        return new Response(JSON.stringify({ valid: true }), { status: 200, headers: getCorsHeaders(origin) });
       }
-      return new Response(JSON.stringify({ valid: false }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ valid: false }), { status: 400, headers: getCorsHeaders(origin) });
     }
 
     // User Count
     if (request.method === "GET" && url.pathname === "/user-count") {
       const result = await db.prepare("SELECT count(*) as total FROM users").first();
       return new Response(JSON.stringify({ count: (result as any).total }), { 
-        status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } 
+        status: 200, headers: getCorsHeaders(origin) 
       });
-    }
-
-    // Proxy Key Fetcher
-    if (request.method === "GET" && url.pathname === "/fetch-keys") {
-      try {
-        const response = await fetch("https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64");
-        const data = await response.text();
-        return new Response(data, {
-          status: 200,
-          headers: { "Content-Type": "text/plain", ...corsHeaders }
-        });
-      } catch (e) {
-        return new Response("Error", { status: 500, headers: corsHeaders });
-      }
     }
 
     if (request.method === "POST") return webhookCallback(bot, "cloudflare-mod")(request);
