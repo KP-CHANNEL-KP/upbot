@@ -55,33 +55,17 @@ export default {
         const decoded = atob(textData);
         const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-        // ပထမဆုံး ၁၀ ခုကိုပဲ Ping စစ်ခြင်း
-        const targets = lines.slice(0, 10);
-        const pingResults = await Promise.all(targets.map(async (line) => {
-          try {
-            const hostname = new URL(line.split('@')[1].split(':')[0]).hostname;
-            const start = Date.now();
-            // ၁.၅ စက္ကန့်အတွင်း Response မလာရင် Timeout သတ်မှတ်ပါ
-            await fetch(`https://${hostname}`, {
-              method: 'GET',
-              signal: AbortSignal.timeout(1500)
-            });
-            return { key: line, ping: Date.now() - start };
-          } catch {
-            return { key: line, ping: 999 };
-          }
-        }));
+        // Ping လုံးဝ မစစ်တော့ဘဲ အားလုံးကို 0 လို့ပဲ ထည့်ပေးလိုက်မယ်
+        const result = lines.map((line) => {
+          return { key: line, ping: 0 };
+        });
 
-        // ကျန်တဲ့ ၈၉ ခုကို ping: -1 (Ping မစစ်ရသေး) လို့ သတ်မှတ်ပြီး ပေါင်းပေးလိုက်ပါ
-        const remaining = lines.slice(10).map(line => ({ key: line, ping: -1 }));
-        const finalResult = [...pingResults, ...remaining];
-
-        return new Response(JSON.stringify(finalResult), {
+        return new Response(JSON.stringify(result), {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders }
         });
       } catch (e) {
-        return new Response(JSON.stringify({ error: "Failed to fetch keys" }), { status: 500, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: "Failed" }), { status: 500, headers: corsHeaders });
       }
     }
     
