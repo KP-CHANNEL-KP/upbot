@@ -68,7 +68,7 @@ export default {
     // Proxy Key Fetcher (အစ်ကို့ URL ထဲက Key တွေကို ဆွဲယူပေးမယ့်အပိုင်း)
     if (request.method === "GET" && url.pathname === "/fetch-keys") {
       try {
-        const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d";
+        const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
         const response = await fetch(remoteUrl);
         const data = await response.text();
         return new Response(data, {
