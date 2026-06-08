@@ -65,7 +65,8 @@ export default {
     const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
     // Ping: 0 သို့မဟုတ် "Active" လို့ပဲ ပို့ပေးလိုက်မယ်
-    const result = lines.map(line => ({ key: line, ping: "Active" }));
+    // .slice(0, 30) ကို ဖျက်လိုက်ပါ
+const result = lines.map(line => ({ key: line, ping: 0 }));
 
     return new Response(JSON.stringify(result), {
       status: 200,
