@@ -11,6 +11,7 @@ export default {
       "Access-Control-Allow-Headers": "Content-Type",
     };
 
+    // OPTIONS request ဆိုရင် ခွင့်ပြုချက်ချက်ချင်းပေးပါ
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
     }
@@ -45,37 +46,28 @@ export default {
 
     // --- 2. API Endpoints ---
 
-    // ပထမ ၁၀ ခုကိုပဲ Ping စစ်ပြီး ကျန်တာကို -1 ပြန်ပေးမည့် Optimized API
+    // Fetch keys with partial ping
     if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
       try {
         const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
         const response = await fetch(remoteUrl);
         const textData = await response.text();
-        
         const decoded = atob(textData);
         const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-        // ၁။ Ping တိုင်းတာခြင်း (ပထမ ၁၀ ခု)
         const targets = lines.slice(0, 10);
         const pingResults = await Promise.all(targets.map(async (line) => {
           try {
             const hostname = new URL(line.split('@')[1].split(':')[0]).hostname;
             const start = Date.now();
-            await fetch(`https://${hostname}`, {
-              method: 'GET',
-              signal: AbortSignal.timeout(1500)
-            });
+            await fetch(`https://${hostname}`, { method: 'GET', signal: AbortSignal.timeout(1500) });
             return { key: line, ping: Date.now() - start };
           } catch {
             return { key: line, ping: 999 };
           }
         }));
 
-        // ၂။ ကျန်တဲ့ ၈၉ ခုကို ping: -1 သတ်မှတ်ခြင်း
         const remaining = lines.slice(10).map(line => ({ key: line, ping: -1 }));
-        
-        // ၃။ ပေါင်းပြီး Ping အနည်းဆုံးမှ အများဆုံးသို့ စီခြင်း
-        // Note: -1 တွေကို အောက်ဆုံးရောက်အောင် လုပ်ပေးထားပါတယ်
         const allKeys = [...pingResults, ...remaining];
         allKeys.sort((a, b) => {
           if (a.ping === -1) return 1;
@@ -92,6 +84,17 @@ export default {
       }
     }
 
+    // Key Verify
+    if (request.method === "POST" && url.pathname === "/verify-key") {
+      const body = await request.json() as { key?: string };
+      const row = await db.prepare("SELECT status FROM keys WHERE key = ?").bind(body.key).first();
+      if (row && (row as any).status === 'active') {
+        await db.prepare("UPDATE keys SET status = 'expired' WHERE key = ?").bind(body.key).run();
+        return new Response(JSON.stringify({ valid: true }), { status: 200, headers: corsHeaders });
+      }
+      return new Response(JSON.stringify({ valid: false }), { status: 400, headers: corsHeaders });
+    }
+
     // User Count
     if (request.method === "GET" && url.pathname === "/user-count") {
       const result = await db.prepare("SELECT count(*) as total FROM users").first();
@@ -103,15 +106,14 @@ export default {
     // Proxy Key Fetcher
     if (request.method === "GET" && url.pathname === "/fetch-keys") {
       try {
-        const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
-        const response = await fetch(remoteUrl);
+        const response = await fetch("https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64");
         const data = await response.text();
         return new Response(data, {
           status: 200,
           headers: { "Content-Type": "text/plain", ...corsHeaders }
         });
       } catch (e) {
-        return new Response("Error fetching keys", { status: 500, headers: corsHeaders });
+        return new Response("Error", { status: 500, headers: corsHeaders });
       }
     }
 
