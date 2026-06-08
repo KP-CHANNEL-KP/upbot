@@ -3,13 +3,23 @@ import { Bot, webhookCallback, InlineKeyboard } from "grammy";
 export default {
   async fetch(request: Request, env: any, ctx: any) {
     const bot = new Bot(env.BOT_TOKEN);
-    const db = env.DB; // D1 Database
+    const db = env.DB;
 
-    // --- 1. Start Command (User Count ထည့်ခြင်း) ---
+    // --- CORS Headers ---
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    };
+
+    // Handle OPTIONS request for CORS preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    // --- 1. Start Command ---
     bot.command("start", async (ctx) => {
       const userId = ctx.from!.id;
-      
-      // User အသစ်ဆိုရင် count ထဲ ထည့်မယ် (IGNORE ဖြင့် Duplicate မဖြစ်အောင် တားဆီးထား)
       await db.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId).run();
 
       const keyboard = new InlineKeyboard()
@@ -22,7 +32,7 @@ export default {
       await ctx.reply("👋 မင်္ဂလာပါ။ Channel Join ပြီးမှ Key ထုတ်လို့ ရမှာဖြစ်ပါတယ်။", { reply_markup: keyboard });
     });
 
-    // --- 2. Key ထုတ်ပေးခြင်း ---
+    // --- 2. Key Generation ---
     bot.callbackQuery("generate_key", async (ctx) => {
       const CHANNEL_ID = "@KP_CHANNEL_KP";
       try {
@@ -43,25 +53,28 @@ export default {
       }
     });
 
-    // --- 3. Website မှ Key/User Count စစ်ခြင်း (API Endpoint) ---
+    // --- 3. API Endpoints ---
     const url = new URL(request.url);
     
-    // Key Verify လုပ်ရန်
+    // Verify Key Endpoint
     if (request.method === "POST" && url.pathname === "/verify-key") {
       const body = await request.json() as { key?: string };
       const row = await db.prepare("SELECT status FROM keys WHERE key = ?").bind(body.key).first();
       
       if (row && (row as any).status === 'active') {
         await db.prepare("UPDATE keys SET status = 'expired' WHERE key = ?").bind(body.key).run();
-        return new Response(JSON.stringify({ valid: true }), { status: 200 });
+        return new Response(JSON.stringify({ valid: true }), { status: 200, headers: corsHeaders });
       }
-      return new Response(JSON.stringify({ valid: false }), { status: 400 });
+      return new Response(JSON.stringify({ valid: false }), { status: 400, headers: corsHeaders });
     }
 
-    // User Count ပြရန် (Web ကနေ ဒီ API ကို ခေါ်ပါ)
+    // User Count Endpoint
     if (request.method === "GET" && url.pathname === "/user-count") {
       const result = await db.prepare("SELECT count(*) as total FROM users").first();
-      return new Response(JSON.stringify({ count: (result as any).total }), { status: 200 });
+      return new Response(JSON.stringify({ count: (result as any).total }), { 
+        status: 200, 
+        headers: { "Content-Type": "application/json", ...corsHeaders } 
+      });
     }
 
     // Webhook Handler
