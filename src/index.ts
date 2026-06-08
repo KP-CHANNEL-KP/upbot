@@ -12,27 +12,23 @@ export default {
       "Access-Control-Allow-Headers": "Content-Type",
     };
 
-    // Handle OPTIONS request for CORS preflight
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // --- 1. Start Command ---
+    const url = new URL(request.url);
+
+    // --- 1. Bot Endpoints ---
     bot.command("start", async (ctx) => {
       const userId = ctx.from!.id;
       await db.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId).run();
-
       const keyboard = new InlineKeyboard()
-        .url("📢 Channel Join ရန်နှိပ်ပါ", "https://t.me/KP_CHANNEL_KP")
-        .row()
-        .url("👤 Admin ကို ဆက်သွယ်ရန်", "https://t.me/kpbykp")
-        .row()
+        .url("📢 Channel Join ရန်နှိပ်ပါ", "https://t.me/KP_CHANNEL_KP").row()
+        .url("👤 Admin ကို ဆက်သွယ်ရန်", "https://t.me/kpbykp").row()
         .text("🔑 Key ထုတ်ရန်", "generate_key");
-
       await ctx.reply("👋 မင်္ဂလာပါ။ Channel Join ပြီးမှ Key ထုတ်လို့ ရမှာဖြစ်ပါတယ်။", { reply_markup: keyboard });
     });
 
-    // --- 2. Key Generation ---
     bot.callbackQuery("generate_key", async (ctx) => {
       const CHANNEL_ID = "@KP_CHANNEL_KP";
       try {
@@ -40,27 +36,20 @@ export default {
         if (member.status === "left" || member.status === "kicked") {
           return await ctx.answerCallbackQuery({ text: "❌ Channel Join မှ Key ထုတ်လို့ ရပါမည်။", show_alert: true });
         }
-
         const newKey = Math.random().toString(36).substring(7).toUpperCase();
         await db.prepare("INSERT INTO keys (key, status) VALUES (?, 'active')").bind(newKey).run();
-
-        await ctx.editMessageText(
-          `✅ သင်၏ Key မှာ: \`${newKey}\` \n\n(Key ကို ထိလိုက်တာနဲ့ Copy ဖြစ်ပါလိမ့်မယ်။)\n\nတစ်ခါသာ သုံးခွင့်ရှိသည်။`, 
-          { parse_mode: "Markdown" }
-        );
+        await ctx.editMessageText(`✅ သင်၏ Key မှာ: \`${newKey}\` \n\n(Key ကို ထိလိုက်တာနဲ့ Copy ဖြစ်ပါလိမ့်မယ်။)`, { parse_mode: "Markdown" });
       } catch (err) {
         await ctx.answerCallbackQuery({ text: "⚠️ Error ဖြစ်နေသည်", show_alert: true });
       }
     });
 
-    // --- 3. API Endpoints ---
-    const url = new URL(request.url);
+    // --- 2. API Endpoints ---
     
-    // Verify Key Endpoint
+    // Key Verify
     if (request.method === "POST" && url.pathname === "/verify-key") {
       const body = await request.json() as { key?: string };
       const row = await db.prepare("SELECT status FROM keys WHERE key = ?").bind(body.key).first();
-      
       if (row && (row as any).status === 'active') {
         await db.prepare("UPDATE keys SET status = 'expired' WHERE key = ?").bind(body.key).run();
         return new Response(JSON.stringify({ valid: true }), { status: 200, headers: corsHeaders });
@@ -68,13 +57,27 @@ export default {
       return new Response(JSON.stringify({ valid: false }), { status: 400, headers: corsHeaders });
     }
 
-    // User Count Endpoint
+    // User Count
     if (request.method === "GET" && url.pathname === "/user-count") {
       const result = await db.prepare("SELECT count(*) as total FROM users").first();
       return new Response(JSON.stringify({ count: (result as any).total }), { 
-        status: 200, 
-        headers: { "Content-Type": "application/json", ...corsHeaders } 
+        status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } 
       });
+    }
+
+    // Proxy Key Fetcher (အစ်ကို့ URL ထဲက Key တွေကို ဆွဲယူပေးမယ့်အပိုင်း)
+    if (request.method === "GET" && url.pathname === "/fetch-keys") {
+      try {
+        const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d";
+        const response = await fetch(remoteUrl);
+        const data = await response.text();
+        return new Response(data, {
+          status: 200,
+          headers: { "Content-Type": "text/plain", ...corsHeaders }
+        });
+      } catch (e) {
+        return new Response("Error fetching keys", { status: 500, headers: corsHeaders });
+      }
     }
 
     // Webhook Handler
