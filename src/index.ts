@@ -47,6 +47,9 @@ export default {
 
     // [FIXED] Backend ကနေ Ping စစ်တာကို လုံးဝဖြုတ်လိုက်ပါပြီ။ Timeout လုံးဝမဖြစ်တော့ပါ။
     // Backend (Worker) အပိုင်း
+// --- 2. API Endpoints ---
+
+// ဒီ block တစ်ခုလုံးကို မင်းရဲ့ index.ts ထဲက အဟောင်းနေရာမှာ အစားထိုးပါ
 if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
   try {
     const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
@@ -55,15 +58,18 @@ if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
     const decoded = atob(textData);
     const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-    // Ping စစ်ခြင်းကို လုံးဝဖြုတ်၊ အားလုံးကို -1 (Ping မစစ်ရသေး) လို့ ပို့ပေးလိုက်မယ်
+    // Ping စစ်တာကို Backend မှာ လုံးဝဖြုတ်လိုက်ပြီး -1 နဲ့ပဲ ပို့ပေးမယ်
     const result = lines.map(line => ({ key: line, ping: -1 }));
 
     return new Response(JSON.stringify(result), {
       status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders }
+      headers: { "Content-Type": "application/json", ...corsHeaders } // corsHeaders က အပေါ်မှာ ကြေညာထားပြီးသား ဖြစ်ရမယ်
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: "Failed" }), { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "Failed" }), { 
+      status: 500, 
+      headers: { "Content-Type": "application/json", ...corsHeaders } 
+    });
   }
 }
 
