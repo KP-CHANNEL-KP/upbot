@@ -5,7 +5,6 @@ export default {
     const bot = new Bot(env.BOT_TOKEN);
     const db = env.DB;
 
-    // --- CORS Headers ---
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -46,7 +45,7 @@ export default {
 
     // --- 2. API Endpoints ---
 
-    // Ping စစ်ပြီး Key ပြန်ပို့မည့် API (အသစ်ထည့်ရန်)
+    // ပထမ ၁၀ ခုကိုပဲ Ping စစ်ပြီး ကျန်တာကို -1 ပြန်ပေးမည့် Optimized API
     if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
       try {
         const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
@@ -56,31 +55,32 @@ export default {
         const decoded = atob(textData);
         const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-        const keysWithPing = await Promise.all(lines.map(async (line) => {
+        // ပထမ ၁၀ ခုကိုသာ Ping စစ်ခြင်း
+        const targets = lines.slice(0, 10);
+        const pingResults = await Promise.all(targets.map(async (line) => {
           try {
             const hostname = new URL(line.split('@')[1].split(':')[0]).hostname;
             const start = Date.now();
-            
-            // Timeout ကို 2s ထားပါ
             await fetch(`https://${hostname}`, { 
-              method: 'GET', // HEAD အစား GET သုံးကြည့်ပါ
-              signal: AbortSignal.timeout(2000) 
+              method: 'GET', 
+              signal: AbortSignal.timeout(1500) 
             });
-            
             return { key: line, ping: Date.now() - start };
           } catch {
             return { key: line, ping: 999 };
           }
         }));
 
-        keysWithPing.sort((a, b) => a.ping - b.ping);
+        // ကျန်တဲ့ ၈၉ ခုကို ping: -1 (Ping မစစ်ရသေး) လို့ ထည့်ပေးလိုက်ပါ
+        const remaining = lines.slice(10).map(line => ({ key: line, ping: -1 }));
+        const finalResult = [...pingResults, ...remaining];
 
-        return new Response(JSON.stringify(keysWithPing), {
+        return new Response(JSON.stringify(finalResult), {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders }
         });
       } catch (e) {
-        return new Response(JSON.stringify({ error: "Failed" }), { status: 500, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: "Failed to fetch keys" }), { status: 500, headers: corsHeaders });
       }
     }
     
@@ -103,7 +103,7 @@ export default {
       });
     }
 
-    // Proxy Key Fetcher (အစ်ကို့ URL ထဲက Key တွေကို ဆွဲယူပေးမယ့်အပိုင်း)
+    // Proxy Key Fetcher
     if (request.method === "GET" && url.pathname === "/fetch-keys") {
       try {
         const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
@@ -118,7 +118,6 @@ export default {
       }
     }
 
-    // Webhook Handler
     if (request.method === "POST") return webhookCallback(bot, "cloudflare-mod")(request);
     
     return new Response("Bot is active!", { status: 200 });
