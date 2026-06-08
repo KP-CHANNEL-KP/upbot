@@ -64,27 +64,12 @@ export default {
     const decoded = atob(textData);
     const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-    // Server-side မှာပဲ Ping စစ်မယ် (Worker က စစ်တာ အဆင်ပြေပါတယ်)
-    const result = await Promise.all(lines.slice(0, 10).map(async (line) => {
-        const start = Date.now();
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 1500); // 1.5 စက္ကန့်ပဲ စောင့်မယ်
-        
-        try {
-            const hostname = new URL(line.split('@')[1].split(':')[0]).hostname;
-            // Ping တိုင်းရန် အမြန်ဆုံးနည်းလမ်း (Head request)
-            await fetch(`https://${hostname}`, { method: 'HEAD', signal: controller.signal });
-            return { key: line, ping: Date.now() - start };
-        } catch {
-            return { key: line, ping: 999 };
-        } finally {
-            clearTimeout(timeout);
-        }
-    }));
+    // Ping: 0 သို့မဟုတ် "Active" လို့ပဲ ပို့ပေးလိုက်မယ်
+    const result = lines.slice(0, 30).map(line => ({ key: line, ping: 0 }));
 
     return new Response(JSON.stringify(result), {
       status: 200,
-      headers: getCorsHeaders(origin)
+      headers: { ...getCorsHeaders(origin), "Cache-Control": "max-age=3600" } // 1 နာရီ Cache လုပ်ထားလို့ ပိုမြန်မယ်
     });
   } catch (e) {
     return new Response(JSON.stringify({ error: "Failed" }), { status: 500, headers: getCorsHeaders(origin) });
