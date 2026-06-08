@@ -45,6 +45,43 @@ export default {
     });
 
     // --- 2. API Endpoints ---
+
+    // Ping စစ်ပြီး Key ပြန်ပို့မည့် API (အသစ်ထည့်ရန်)
+    if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
+      try {
+        const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
+        const response = await fetch(remoteUrl);
+        const textData = await response.text();
+        
+        // Base64 decode လုပ်ခြင်း
+        const decoded = atob(textData);
+        // trojan လင့်ခ်များ ခွဲထုတ်ခြင်း
+        const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
+
+        // Server တစ်ခုချင်းစီ Ping စစ်ခြင်း
+        const keysWithPing = await Promise.all(lines.map(async (line) => {
+          try {
+            const hostname = new URL(line.split('@')[1].split(':')[0]).hostname;
+            const start = Date.now();
+            // Ping တိုင်းတာခြင်း (HEAD request သုံးခြင်း)
+            await fetch(`https://${hostname}`, { method: 'HEAD', signal: AbortSignal.timeout(2000) });
+            return { key: line, ping: Date.now() - start };
+          } catch {
+            return { key: line, ping: 999 }; // Error တက်ရင် 999ms ထားမယ်
+          }
+        }));
+
+        // Ping အမြန်ဆုံးအလိုက် အစဉ်လိုက်စီခြင်း
+        keysWithPing.sort((a, b) => a.ping - b.ping);
+
+        return new Response(JSON.stringify(keysWithPing), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "Failed to fetch keys" }), { status: 500, headers: corsHeaders });
+      }
+    }
     
     // Key Verify
     if (request.method === "POST" && url.pathname === "/verify-key") {
