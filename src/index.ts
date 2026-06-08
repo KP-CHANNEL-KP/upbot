@@ -11,7 +11,6 @@ export default {
       "Access-Control-Allow-Headers": "Content-Type",
     };
 
-    // OPTIONS request ဆိုရင် ခွင့်ပြုချက်ချက်ချင်းပေးပါ
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
     }
@@ -46,7 +45,7 @@ export default {
 
     // --- 2. API Endpoints ---
 
-    // Fetch keys with partial ping
+    // [FIXED] Backend ကနေ Ping စစ်တာကို လုံးဝဖြုတ်လိုက်ပါပြီ။ Timeout လုံးဝမဖြစ်တော့ပါ။
     if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
       try {
         const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
@@ -55,32 +54,15 @@ export default {
         const decoded = atob(textData);
         const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-        const targets = lines.slice(0, 10);
-        const pingResults = await Promise.all(targets.map(async (line) => {
-          try {
-            const hostname = new URL(line.split('@')[1].split(':')[0]).hostname;
-            const start = Date.now();
-            await fetch(`https://${hostname}`, { method: 'GET', signal: AbortSignal.timeout(1500) });
-            return { key: line, ping: Date.now() - start };
-          } catch {
-            return { key: line, ping: 999 };
-          }
-        }));
-
-        const remaining = lines.slice(10).map(line => ({ key: line, ping: -1 }));
-        const allKeys = [...pingResults, ...remaining];
-        allKeys.sort((a, b) => {
-          if (a.ping === -1) return 1;
-          if (b.ping === -1) return -1;
-          return a.ping - b.ping;
-        });
+        // Ping -1 နဲ့ Data အကုန်လုံးကို ချက်ချင်းပြန်ပို့မယ်
+        const allKeys = lines.map(line => ({ key: line, ping: -1 }));
 
         return new Response(JSON.stringify(allKeys), {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders }
         });
       } catch (e) {
-        return new Response(JSON.stringify({ error: "Failed" }), { status: 500, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: "Failed to fetch keys" }), { status: 500, headers: corsHeaders });
       }
     }
 
