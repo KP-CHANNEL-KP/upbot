@@ -59,28 +59,31 @@ export default {
     if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
   try {
     const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
-    
-    // ဒီနေရာမှာ အစားထိုးထည့်ပါ
-    const response = await fetch(remoteUrl, { 
-        signal: AbortSignal.timeout(5000) 
-    });
-
+    const response = await fetch(remoteUrl);
     const textData = await response.text();
     const decoded = atob(textData);
     const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-    const result = lines.slice(0, 30).map(line => ({ key: line, ping: -1 }));
+    // Backend မှာပဲ Ping စစ်မယ် (Server ကနေစစ်တာပိုမြန်တယ်)
+    const result = await Promise.all(lines.slice(0, 10).map(async (line) => {
+        const start = performance.now();
+        try {
+            // Server ကနေ Ping စစ်မယ်
+            const controller = new AbortController();
+            setTimeout(() => controller.abort(), 2000);
+            await fetch(`https://${new URL(line.split('@')[1].split(':')[0]).hostname}`, { signal: controller.signal });
+            return { key: line, ping: Math.round(performance.now() - start) };
+        } catch {
+            return { key: line, ping: 999 };
+        }
+    }));
 
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: getCorsHeaders(origin)
     });
   } catch (e) {
-    // Timeout ဖြစ်သွားရင် ဒီ Error message ကို ပြပါမယ်
-    return new Response(JSON.stringify({ error: "Remote server timeout (5s)" }), { 
-        status: 504, // Gateway Timeout
-        headers: getCorsHeaders(origin) 
-    });
+    return new Response(JSON.stringify({ error: "Failed" }), { status: 500, headers: getCorsHeaders(origin) });
   }
 }
 
