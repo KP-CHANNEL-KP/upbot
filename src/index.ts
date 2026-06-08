@@ -46,25 +46,26 @@ export default {
     // --- 2. API Endpoints ---
 
     // [FIXED] Backend ကနေ Ping စစ်တာကို လုံးဝဖြုတ်လိုက်ပါပြီ။ Timeout လုံးဝမဖြစ်တော့ပါ။
-    if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
-      try {
-        const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
-        const response = await fetch(remoteUrl);
-        const textData = await response.text();
-        const decoded = atob(textData);
-        const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
+    // Backend (Worker) အပိုင်း
+if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
+  try {
+    const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
+    const response = await fetch(remoteUrl);
+    const textData = await response.text();
+    const decoded = atob(textData);
+    const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-        // Ping -1 နဲ့ Data အကုန်လုံးကို ချက်ချင်းပြန်ပို့မယ်
-        const allKeys = lines.map(line => ({ key: line, ping: -1 }));
+    // Ping စစ်ခြင်းကို လုံးဝဖြုတ်၊ အားလုံးကို -1 ပို့မယ်
+    const result = lines.map(line => ({ key: line, ping: -1 }));
 
-        return new Response(JSON.stringify(allKeys), {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: "Failed to fetch keys" }), { status: 500, headers: corsHeaders });
-      }
-    }
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: "Failed" }), { status: 500, headers: corsHeaders });
+  }
+}
 
     // Key Verify
     if (request.method === "POST" && url.pathname === "/verify-key") {
