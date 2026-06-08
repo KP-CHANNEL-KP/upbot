@@ -62,10 +62,9 @@ export default {
             const hostname = new URL(line.split('@')[1].split(':')[0]).hostname;
             const start = Date.now();
             // ၁.၅ စက္ကန့်အတွင်း Response မလာရင် Timeout သတ်မှတ်ပါ
-            await fetch(`https://${hostname}`, { 
-              method: 'GET', 
-              mode: 'no-cors', 
-              signal: AbortSignal.timeout(1500) 
+            await fetch(`https://${hostname}`, {
+              method: 'GET',
+              signal: AbortSignal.timeout(1500)
             });
             return { key: line, ping: Date.now() - start };
           } catch {
