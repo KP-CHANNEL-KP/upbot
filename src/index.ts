@@ -55,7 +55,7 @@ if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
     const decoded = atob(textData);
     const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-    // Ping စစ်ခြင်းကို လုံးဝဖြုတ်၊ အားလုံးကို -1 ပို့မယ်
+    // Ping စစ်ခြင်းကို လုံးဝဖြုတ်၊ အားလုံးကို -1 (Ping မစစ်ရသေး) လို့ ပို့ပေးလိုက်မယ်
     const result = lines.map(line => ({ key: line, ping: -1 }));
 
     return new Response(JSON.stringify(result), {
