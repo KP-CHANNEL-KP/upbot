@@ -55,29 +55,41 @@ export default {
         const decoded = atob(textData);
         const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-        // Ping လုံးဝ မစစ်တော့ဘဲ အားလုံးကို 0 လို့ပဲ ထည့်ပေးလိုက်မယ်
-        const result = lines.map((line) => {
-          return { key: line, ping: 0 };
+        // ၁။ Ping တိုင်းတာခြင်း (ပထမ ၁၀ ခု)
+        const targets = lines.slice(0, 10);
+        const pingResults = await Promise.all(targets.map(async (line) => {
+          try {
+            const hostname = new URL(line.split('@')[1].split(':')[0]).hostname;
+            const start = Date.now();
+            await fetch(`https://${hostname}`, {
+              method: 'GET',
+              signal: AbortSignal.timeout(1500)
+            });
+            return { key: line, ping: Date.now() - start };
+          } catch {
+            return { key: line, ping: 999 };
+          }
+        }));
+
+        // ၂။ ကျန်တဲ့ ၈၉ ခုကို ping: -1 သတ်မှတ်ခြင်း
+        const remaining = lines.slice(10).map(line => ({ key: line, ping: -1 }));
+        
+        // ၃။ ပေါင်းပြီး Ping အနည်းဆုံးမှ အများဆုံးသို့ စီခြင်း
+        // Note: -1 တွေကို အောက်ဆုံးရောက်အောင် လုပ်ပေးထားပါတယ်
+        const allKeys = [...pingResults, ...remaining];
+        allKeys.sort((a, b) => {
+          if (a.ping === -1) return 1;
+          if (b.ping === -1) return -1;
+          return a.ping - b.ping;
         });
 
-        return new Response(JSON.stringify(result), {
+        return new Response(JSON.stringify(allKeys), {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders }
         });
       } catch (e) {
         return new Response(JSON.stringify({ error: "Failed" }), { status: 500, headers: corsHeaders });
       }
-    }
-    
-    // Key Verify
-    if (request.method === "POST" && url.pathname === "/verify-key") {
-      const body = await request.json() as { key?: string };
-      const row = await db.prepare("SELECT status FROM keys WHERE key = ?").bind(body.key).first();
-      if (row && (row as any).status === 'active') {
-        await db.prepare("UPDATE keys SET status = 'expired' WHERE key = ?").bind(body.key).run();
-        return new Response(JSON.stringify({ valid: true }), { status: 200, headers: corsHeaders });
-      }
-      return new Response(JSON.stringify({ valid: false }), { status: 400, headers: corsHeaders });
     }
 
     // User Count
