@@ -55,14 +55,16 @@ export default {
         const decoded = atob(textData);
         const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-        // ပထမ ၁၀ ခုကိုသာ Ping စစ်ခြင်း
+        // ပထမဆုံး ၁၀ ခုကိုပဲ Ping စစ်ခြင်း
         const targets = lines.slice(0, 10);
         const pingResults = await Promise.all(targets.map(async (line) => {
           try {
             const hostname = new URL(line.split('@')[1].split(':')[0]).hostname;
             const start = Date.now();
+            // ၁.၅ စက္ကန့်အတွင်း Response မလာရင် Timeout သတ်မှတ်ပါ
             await fetch(`https://${hostname}`, { 
               method: 'GET', 
+              mode: 'no-cors', 
               signal: AbortSignal.timeout(1500) 
             });
             return { key: line, ping: Date.now() - start };
@@ -71,7 +73,7 @@ export default {
           }
         }));
 
-        // ကျန်တဲ့ ၈၉ ခုကို ping: -1 (Ping မစစ်ရသေး) လို့ ထည့်ပေးလိုက်ပါ
+        // ကျန်တဲ့ ၈၉ ခုကို ping: -1 (Ping မစစ်ရသေး) လို့ သတ်မှတ်ပြီး ပေါင်းပေးလိုက်ပါ
         const remaining = lines.slice(10).map(line => ({ key: line, ping: -1 }));
         const finalResult = [...pingResults, ...remaining];
 
