@@ -64,8 +64,23 @@ export default {
     const decoded = atob(textData);
     const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
 
-    // Ping မစစ်တော့ဘဲ ping: 0 သို့မဟုတ် -1 နဲ့ပဲ ပို့မယ်
-    const result = lines.slice(0, 30).map(line => ({ key: line, ping: 0 }));
+    // Server-side မှာပဲ Ping စစ်မယ် (Worker က စစ်တာ အဆင်ပြေပါတယ်)
+    const result = await Promise.all(lines.slice(0, 10).map(async (line) => {
+        const start = Date.now();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1500); // 1.5 စက္ကန့်ပဲ စောင့်မယ်
+        
+        try {
+            const hostname = new URL(line.split('@')[1].split(':')[0]).hostname;
+            // Ping တိုင်းရန် အမြန်ဆုံးနည်းလမ်း (Head request)
+            await fetch(`https://${hostname}`, { method: 'HEAD', signal: controller.signal });
+            return { key: line, ping: Date.now() - start };
+        } catch {
+            return { key: line, ping: 999 };
+        } finally {
+            clearTimeout(timeout);
+        }
+    }));
 
     return new Response(JSON.stringify(result), {
       status: 200,
