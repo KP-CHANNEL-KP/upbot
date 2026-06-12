@@ -101,3 +101,4 @@ const result = lines.map(line => ({ key: line, ping: 0 }));
     return new Response("Bot is active!", { status: 200 });
   },
 };
+//
