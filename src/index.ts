@@ -5,29 +5,8 @@ export default {
     const bot = new Bot(env.BOT_TOKEN);
     const db = env.DB;
 
-    // CORS Headers ကို အမြဲတမ်းသုံးနိုင်ရန်အတွက် function တစ်ခုဆောက်ပေးထားသည်
-    const getCorsHeaders = (origin: string | null) => ({
-      "Access-Control-Allow-Origin": origin || "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-      "Content-Type": "application/json"
-    });
-
-    // OPTIONS request ဆိုရင် ခွင့်ပြုချက်ချက်ချင်းပေးပါ
-    if (request.method === "OPTIONS") {
-      return new Response(null, { 
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
-        } 
-      });
-    }
-
-    const url = new URL(request.url);
-    const origin = request.headers.get("Origin");
-
-    // --- 1. Bot Endpoints ---
+    // --- Bot Command များကို ဤနေရာတွင် ထည့်ပါ ---
+    
     bot.command("start", async (ctx) => {
       const userId = ctx.from!.id;
       await db.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId).run();
@@ -38,91 +17,59 @@ export default {
       await ctx.reply("👋 မင်္ဂလာပါ။ Channel Join ပြီးမှ Key ထုတ်လို့ ရမှာဖြစ်ပါတယ်။", { reply_markup: keyboard });
     });
 
-    bot.callbackQuery("generate_key", async (ctx) => {
-      const CHANNEL_ID = "@KP_CHANNEL_KP";
-      try {
-        const member = await ctx.api.getChatMember(CHANNEL_ID, ctx.from!.id);
-        if (member.status === "left" || member.status === "kicked") {
-          return await ctx.answerCallbackQuery({ text: "❌ Channel Join မှ Key ထုတ်လို့ ရပါမည်။", show_alert: true });
+    // အရေးကြီး: သင်ထည့်လိုက်တဲ့ getkey command ကို ဒီနေရာမှာ ထည့်ပါ
+    bot.command("getkey", async (ctx) => {
+      const args = ctx.message?.text.split(" ");
+      if (args && args.length >= 3) {
+        const orderId = args[2].replace("order_id:", "");
+        try {
+          const update = await db.prepare("UPDATE orders SET status = 'completed' WHERE id = ?").bind(orderId).run();
+          if (update.success) {
+            await ctx.reply(`✅ Order ID: ${orderId} အောင်မြင်စွာ Update လုပ်ပြီးပါပြီ။`);
+          } else {
+            await ctx.reply("❌ Update မအောင်မြင်ပါ။");
+          }
+        } catch (e) {
+          await ctx.reply("⚠️ Database Error ဖြစ်နေပါသည်။");
         }
-        const newKey = Math.random().toString(36).substring(7).toUpperCase();
-        await db.prepare("INSERT INTO keys (key, status) VALUES (?, 'active')").bind(newKey).run();
-        await ctx.editMessageText(`✅ သင်၏ Key မှာ: \`${newKey}\` \n\n(Key ကို ထိလိုက်တာနဲ့ Copy ဖြစ်ပါလိမ့်မယ်။)`, { parse_mode: "Markdown" });
-      } catch (err) {
-        await ctx.answerCallbackQuery({ text: "⚠️ Error ဖြစ်နေသည်", show_alert: true });
+      } else {
+        await ctx.reply("ပုံစံအမှား! /getkey [GB] order_id:[ID] ဟု ရိုက်ပါ။");
       }
     });
 
-    // --- 2. API Endpoints ---
+    bot.callbackQuery("generate_key", async (ctx) => {
+        // ... (သင်ရေးထားတဲ့ Code အတိုင်း) ...
+    });
 
-    // [FIXED] Backend ကနေ Ping စစ်တာကို လုံးဝဖြုတ်လိုက်ပါပြီ။ Frontend ကပဲ စစ်ပါတော့မည်။
+    // --- API Endpoints ---
+    const url = new URL(request.url);
+    const origin = request.headers.get("Origin");
+
+    // Fetch Keys API (Error Handling အသစ်)
     if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
-  try {
-    const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
-    const response = await fetch(remoteUrl);
-    const textData = await response.text();
-    const decoded = atob(textData);
-    const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
+      try {
+        const remoteUrl = "https://www.kpkey.mytunnel.org/sub?token=368c66340d34f97681309be837425b1d&b64";
+        const response = await fetch(remoteUrl);
+        const textData = await response.text();
+        let decoded = "";
+        try { decoded = atob(textData); } catch { decoded = textData; }
+        const lines = decoded.split('\n').filter(l => l.trim().startsWith('trojan://'));
+        const result = lines.map(line => ({ key: line, ping: 0 }));
 
-    // Ping: 0 သို့မဟုတ် "Active" လို့ပဲ ပို့ပေးလိုက်မယ်
-    // .slice(0, 30) ကို ဖျက်လိုက်ပါ
-const result = lines.map(line => ({ key: line, ping: 0 }));
-
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { ...getCorsHeaders(origin), "Cache-Control": "max-age=3600" } // 1 နာရီ Cache လုပ်ထားလို့ ပိုမြန်မယ်
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: "Failed" }), { status: 500, headers: getCorsHeaders(origin) });
-  }
-}
-
-    // Key Verify
-    if (request.method === "POST" && url.pathname === "/verify-key") {
-      const body = await request.json() as { key?: string };
-      const row = await db.prepare("SELECT status FROM keys WHERE key = ?").bind(body.key).first();
-      if (row && (row as any).status === 'active') {
-        await db.prepare("UPDATE keys SET status = 'expired' WHERE key = ?").bind(body.key).run();
-        return new Response(JSON.stringify({ valid: true }), { status: 200, headers: getCorsHeaders(origin) });
+        return new Response(JSON.stringify(result || []), {
+          status: 200,
+          headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify([]), { status: 200, headers: { "Access-Control-Allow-Origin": "*" } });
       }
-      return new Response(JSON.stringify({ valid: false }), { status: 400, headers: getCorsHeaders(origin) });
     }
 
-    // User Count
-    if (request.method === "GET" && url.pathname === "/user-count") {
-      const result = await db.prepare("SELECT count(*) as total FROM users").first();
-      return new Response(JSON.stringify({ count: (result as any).total }), { 
-        status: 200, headers: getCorsHeaders(origin) 
-      });
-    }
+    // တခြား API Endpoint တွေ (Verify-key, User-count) ကို ဒီနေရာမှာ ဆက်ထည့်ပါ...
 
+    // Webhook Callback
     if (request.method === "POST") return webhookCallback(bot, "cloudflare-mod")(request);
     
     return new Response("Bot is active!", { status: 200 });
   },
 };
-
-bot.command("getkey", async (ctx) => {
-      const args = ctx.message?.text.split(" ");
-      if (args && args.length >= 3) {
-        const gb = args[1];
-        const orderId = args[2].replace("order_id:", ""); // order_id: ကို ဖြုတ်ပြီး နံပါတ်သက်သက်ယူခြင်း
-
-        try {
-          // Database ထဲမှာ ရှိမရှိ စစ်ဆေးပြီး Update လုပ်ပါ
-          const update = await db.prepare(
-            "UPDATE orders SET status = 'completed' WHERE id = ?"
-          ).bind(orderId).run();
-
-          if (update.success) {
-            await ctx.reply(`✅ Order ID: ${orderId} ကို အောင်မြင်စွာ Update လုပ်ပြီးပါပြီ။`);
-          } else {
-            await ctx.reply("❌ Database update မအောင်မြင်ပါ။");
-          }
-        } catch (e) {
-          await ctx.reply("⚠️ Error ဖြစ်နေပါသည်။");
-        }
-      } else {
-        await ctx.reply("ပုံစံအမှား! /getkey [GB] order_id:[ID] ဟု ရိုက်ပေးပါ။");
-      }
-    });
