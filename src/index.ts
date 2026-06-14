@@ -101,4 +101,28 @@ const result = lines.map(line => ({ key: line, ping: 0 }));
     return new Response("Bot is active!", { status: 200 });
   },
 };
-//
+
+bot.command("getkey", async (ctx) => {
+      const args = ctx.message?.text.split(" ");
+      if (args && args.length >= 3) {
+        const gb = args[1];
+        const orderId = args[2].replace("order_id:", ""); // order_id: ကို ဖြုတ်ပြီး နံပါတ်သက်သက်ယူခြင်း
+
+        try {
+          // Database ထဲမှာ ရှိမရှိ စစ်ဆေးပြီး Update လုပ်ပါ
+          const update = await db.prepare(
+            "UPDATE orders SET status = 'completed' WHERE id = ?"
+          ).bind(orderId).run();
+
+          if (update.success) {
+            await ctx.reply(`✅ Order ID: ${orderId} ကို အောင်မြင်စွာ Update လုပ်ပြီးပါပြီ။`);
+          } else {
+            await ctx.reply("❌ Database update မအောင်မြင်ပါ။");
+          }
+        } catch (e) {
+          await ctx.reply("⚠️ Error ဖြစ်နေပါသည်။");
+        }
+      } else {
+        await ctx.reply("ပုံစံအမှား! /getkey [GB] order_id:[ID] ဟု ရိုက်ပေးပါ။");
+      }
+    });
