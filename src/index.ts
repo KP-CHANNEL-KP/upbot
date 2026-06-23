@@ -58,7 +58,7 @@ export default {
     // [FIXED] Backend ကနေ Ping စစ်တာကို လုံးဝဖြုတ်လိုက်ပါပြီ။ Frontend ကပဲ စစ်ပါတော့မည်။
     if (request.method === "GET" && url.pathname === "/fetch-keys-with-ping") {
   try {
-    const remoteUrl = "https://kp.kptrial.mytunnel.org/sub?token=48796228394a5327b0726144e08bcc8b&b64";
+    const remoteUrl = "https://kp.kptrial.mytunnel.org/sub?token=0373a808853be80b19697d3e09fa0d7c&b64";
     const response = await fetch(remoteUrl);
     const textData = await response.text();
     const decoded = atob(textData);
