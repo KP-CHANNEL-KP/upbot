@@ -35,7 +35,7 @@ export default {
         .url("📢 Channel Join ရန်နှိပ်ပါ", "https://t.me/KP_CHANNEL_KP").row()
         .url("👤 Admin ကို ဆက်သွယ်ရန်", "https://t.me/kpbykp").row()
         .text("🔑 Key ထုတ်ရန်", "generate_key");
-      await ctx.reply("👋 မင်္ဂလာပါ။ Channel Join ပြီးမှ Key ထုတ်လို့ ရမှာဖြစ်ပါတယ်။Vpn Key မှားဝယ်ယူချင်တယ် ဆိုရင်တော့ @KPBYKP သို့ ဆက်သွယ်နိုင်ပါသည်။", { reply_markup: keyboard });
+      await ctx.reply("👋 မင်္ဂလာပါ။ Channel Join ပြီးမှ Key ထုတ်လို့ ရမှာဖြစ်ပါတယ်။Vpn Key များဝယ်ယူချင်တယ် ဆိုရင်တော့ @KPBYKP သို့ ဆက်သွယ်နိုင်ပါသည်။", { reply_markup: keyboard });
     });
 
     bot.callbackQuery("generate_key", async (ctx) => {
