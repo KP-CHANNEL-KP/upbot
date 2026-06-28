@@ -1,4 +1,5 @@
 import { Bot, webhookCallback, InlineKeyboard } from "grammy";
+import { connect } from "cloudflare:sockets";
 
 // ── Trojan key ထဲက host:port ဆွဲထုတ်မယ် ──
 function extractHostPort(trojanKey: string): { host: string; port: number } | null {
@@ -12,30 +13,36 @@ function extractHostPort(trojanKey: string): { host: string; port: number } | nu
   }
 }
 
-// ── တစ်ခုချင်း ping စစ်မယ် (HTTPS fetch timing) ──
+// ── တစ်ခုချင်း ping စစ်မယ် (Real TCP connect timing) ──
+// HTTPS fetch() အစား raw TCP socket connect time ကို တိုင်းတယ်။
+// Trojan/V2ray protocol က HTTP မဟုတ်ဘူး — fetch() သုံးရင် TLS handshake error
+// နဲ့ အမြဲ fail ဖြစ်ပြီး real latency ရအောင် တိုင်းလို့ မရဘူး (ဒါကြောင့် ping=0
+// အမြဲတမ်း ပြန်ခဲ့တာ)။ TCP socket connect time ကတော့ protocol ဘာဖြစ်ဖြစ်
+// server ဆီရောက်ဖို့ ကြာချိန်ကို တိုက်ရိုက်ပြတဲ့အတွက် ပိုတိကျတယ်။
 async function checkPing(host: string, port: number): Promise<number> {
-  const url = `https://${host}:${port}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 3000); // 3s timeout
+  const timeoutMs = 3000; // 3s timeout
+  const start = Date.now();
+  let socket: ReturnType<typeof connect> | null = null;
 
   try {
-    const start = Date.now();
-    await fetch(url, {
-      method: "HEAD",
-      signal: controller.signal,
-      // @ts-ignore
-      cf: { cacheTtl: 0 },
+    socket = connect({ hostname: host, port });
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("timeout")), timeoutMs);
     });
-    clearTimeout(timeout);
-    return Date.now() - start;
-  } catch (e: any) {
-    clearTimeout(timeout);
-    // Connection refused / TLS error ဆိုလည်း server alive ဆိုတာ သိတယ်
-    // AbortError ဆိုတော့မှ timeout
-    if (e?.name === "AbortError") return -1; // timeout
-    // တခြား error (CORS, TLS) = server online ဖြစ်နိုင်တယ်
-    // timing ကို တိုင်းလို့မရဘူးဆိုရင် 0 ပြန်ပေး (Active အနေနဲ့ ပြမယ်)
-    return 0;
+
+    // socket.opened resolves when TCP handshake အောင်မြင်တာနဲ့
+    await Promise.race([socket.opened, timeoutPromise]);
+
+    const elapsed = Date.now() - start;
+    return elapsed; // real ms latency
+  } catch {
+    return -1; // timeout or connection refused = server မရောက်/dead
+  } finally {
+    // socket ကို background မှာ ပိတ်လိုက်မယ်, response ကို မနှောင့်နှေးအောင်
+    if (socket) {
+      socket.close().catch(() => {});
+    }
   }
 }
 
