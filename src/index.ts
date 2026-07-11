@@ -80,7 +80,7 @@ export default {
 
         // Key subscription ကနေ ဆွဲယူမယ်
         const remoteUrl =
-          "https://kptrial1.kpchannel2.cc.cd/sub?token=3fa6c9690bdb45c91a193a56750d5a15&b64";
+          "https://kptrial222.kpchannel2.cc.cd/sub?token=2dd4f5d56ed7631383cab69e9d006923&b64";
         const response = await fetch(remoteUrl);
         const textData = await response.text();
         const decoded  = atob(textData);
