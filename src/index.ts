@@ -30,8 +30,8 @@ export default {
       const userId = ctx.from!.id;
       await db.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId).run();
       const keyboard = new InlineKeyboard()
-        .url("📢 Channel Join ရန်နှိပ်ပါ", "https://t.me/KP_CHANNEL_KP").row()
-        .url("👤 Admin ကို ဆက်သွယ်ရန်", "https://t.me/kpbykp").row()
+        .url("📢 Channel Join ရန်နှိပ်ပါ", "https://telegram.me/KP_CHANNEL_KP").row()
+        .url("👤 Admin ကို ဆက်သွယ်ရန်", "https://telegram.me/kpbykp").row()
         .text("🔑 Key ထုတ်ရန်", "generate_key");
       await ctx.reply(
         "👋 မင်္ဂလာပါ။ Channel Join ပြီးမှ Key ထုတ်လို့ ရမှာဖြစ်ပါတယ်။ VPN Key များဝယ်ယူချင်တယ် ဆိုရင်တော့ @KPBYKP သို့ ဆက်သွယ်နိုင်ပါသည်။",
