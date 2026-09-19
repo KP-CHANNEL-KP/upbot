@@ -80,7 +80,7 @@ export default {
 
         // Key subscription ကနေ ဆွဲယူမယ်
         const remoteUrl =
-          "https://kp.kptrial.mytunnel.org/sub?token=4861ac8d6a8a2ee2184accb3b05ece0c&b64";
+          "https://kpvip.kpvpn.shop/sub?token=bb2d901d517e1383ecbc45d554f99d67&b64";
         const response = await fetch(remoteUrl);
         const textData = await response.text();
         const decoded  = atob(textData);
